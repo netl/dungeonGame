@@ -1,8 +1,21 @@
 #!/usr/bin/python3
 import pygame
 from pygame.locals import *
-import sys
 import random
+
+#setup window and graphics
+class view:
+   width = 800
+   height = 600
+pygame.init()
+screen = pygame.display.set_mode([view.width,view.height])
+
+class world:
+   squareSize = 60
+   grid = 40
+   mapScale = 1/10
+   players = 1
+   mapOverview = pygame.Surface((grid*squareSize*mapScale,grid*squareSize*mapScale))
 
 class level:
    color = ((255,128,0),(0,0,0))
@@ -18,7 +31,7 @@ class level:
    
    #generate tunnels
    def generate(self):
-      miner = player(int(grid/2),int(grid/2))
+      miner = player(int(world.grid/2),int(world.grid/2))
       pOne.x = miner.x
       pOne.y = miner.y
       for i in range(200):
@@ -42,6 +55,7 @@ class level:
 class player:
    controls = {'up':K_k,'down':K_j,'left':K_h,'right':K_l}
    mapColor = (255,255,255)
+   perspective = pygame.Surface((view.width/2,view.height/2))
 
    def __init__(self,x,y):
       self.x = x
@@ -80,22 +94,23 @@ class player:
          return(1)
       else:
          return(0)
+
    def underneath(self):
       return(l.map[self.y][self.x])
 
-#setup window and graphics
-squareSize = 10
-grid = 40
-screenWidth = squareSize*grid
-screenHeight = squareSize*grid 
-pygame.init()
-screen = pygame.display.set_mode([screenWidth,screenHeight])
+   def drawView(self):
+      #draw the grid
+      for y in range(len(l.map)):
+         for x in range(len(l.map[y])):
+            pygame.draw.rect(self.perspective, l.color[l.map[y][x]], pygame.Rect(world.squareSize*(-self.x+x)+view.width/4,world.squareSize*(-self.y+y)+view.height/4,world.squareSize,world.squareSize))
+      #draw the player
+      pygame.draw.rect(self.perspective, self.mapColor, pygame.Rect(view.width/4,view.height/4,world.squareSize,world.squareSize))
 
 #create level
-l = level(grid,grid)
+l = level(world.grid,world.grid)
 
 #generate players
-pOne = player(int(grid/2),int(grid/2))
+pOne = player(int(world.grid/2),int(world.grid/2))
 pOne.mapColor = (255,0,0)
 
 #game variables
@@ -115,12 +130,17 @@ while(playing):
             l.generate()
          pOne.readInput(key)
 
-   #draw the grid
+   pOne.drawView()
+
+   #draw the map
    for y in range(len(l.map)):
       for x in range(len(l.map[y])):
-         pygame.draw.rect(screen, l.color[l.map[y][x]], pygame.Rect(squareSize*x,squareSize*y,squareSize,squareSize))
-   
-   pygame.draw.rect(screen, pOne.mapColor, pygame.Rect(squareSize*pOne.x,squareSize*pOne.y,squareSize,squareSize))
+         pygame.draw.rect(world.mapOverview, l.color[l.map[y][x]], pygame.Rect( world.squareSize*x*world.mapScale, world.squareSize*y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+   #draw the players on the map
+   pygame.draw.rect(world.mapOverview, pOne.mapColor, pygame.Rect( world.squareSize*world.mapScale*pOne.x, world.squareSize*pOne.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+
+   screen.blit(pOne.perspective,(0,0))
+   screen.blit(world.mapOverview,(view.width/2-world.mapOverview.get_width()/2,view.height/2-world.mapOverview.get_height()/2))
 
    pygame.display.flip()
 
