@@ -2,17 +2,18 @@
 import pygame
 from pygame.locals import *
 import random
+import time
 
 #setup window and graphics
 class view:
-   width = 1680
-   height = 1050
+   width = 800
+   height = 600
 pygame.init()
 screen = pygame.display.set_mode([view.width,view.height])
 
 class world:
    grid = 40
-   players = 4
+   players = 1
    #different settings for different amounts of players
    if(players==1): #player view on the left, map overview at the top right
       playerWindowSize = view.height
@@ -31,12 +32,15 @@ class world:
       playerWindowPosition = ((view.width-playerWindowSize,0),(0,view.height-playerWindowSize),(0,0),(view.width-playerWindowSize,view.height-playerWindowSize))
       squareSize = playerWindowSize/11
       mapScale = (view.width-playerWindowSize*2)/(squareSize*grid)
-      mapOverviewPosition = (playerWindowSize,playerWindowSize/2)
+      mapOverviewPosition = (playerWindowSize,(view.height-mapScale*squareSize*grid)/2)
    mapOverview = pygame.Surface((grid*squareSize*mapScale,grid*squareSize*mapScale))
 
 class level:
    color = ((255,128,0),(0,0,0))
-   def __init__(self, width, height):
+   def __init__(self, width, height, tileset):
+      self.tileset = pygame.image.load("./"+tileset+".png")
+      self.tileset = pygame.transform.scale(self.tileset,(int(2*world.squareSize),int(world.squareSize)))
+      self.mapTileset = pygame.transform.scale(self.tileset,(int(2*world.squareSize*world.mapScale),int(world.squareSize*world.mapScale)))
       self.map = [[0 for x in range(width)] for y in range(height)]
   
    #clear the level 
@@ -70,11 +74,11 @@ class level:
       return(0)
 
 class player:
-   controls = {'up':K_UP,'down':K_DOWN,'left':K_LEFT,'right':K_RIGHT}
-   mapColor = (255,255,255)
-   perspective = pygame.Surface((world.playerWindowSize,world.playerWindowSize))
 
    def __init__(self,x,y):
+      self.controls = {'up':K_UP,'down':K_DOWN,'left':K_LEFT,'right':K_RIGHT}
+      self.mapColor = (255,255,255)
+      self.perspective = pygame.Surface((world.playerWindowSize,world.playerWindowSize))
       self.x = x
       self.y = y
 
@@ -83,18 +87,23 @@ class player:
          self.move('up')
          if(self.underneath() == 0):
             self.move('down')
+         return(0)
       if key[self.controls['down']]:
          self.move('down')
          if(self.underneath() == 0):
             self.move('up')
+         return(0)
       if key[self.controls['left']]:
          self.move('left')
          if(self.underneath() == 0):
             self.move('right')
+         return(0)
       if key[self.controls['right']]:
          self.move('right')
          if(self.underneath() == 0):
             self.move('left')
+         return(0)
+      return(1)
       
    def move(self, direction):
       if(direction == 'up' and self.y>0):
@@ -120,7 +129,8 @@ class player:
       #draw the grid
       for y in range(len(l.map)):
          for x in range(len(l.map[y])):
-            pygame.draw.rect(self.perspective, l.color[l.map[y][x]], pygame.Rect(world.squareSize*(-self.x+x)+offset,world.squareSize*(-self.y+y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
+            if(x < self.x+10 and x > self.x-10 and y < self.y+10 and y > self.y-10):
+               self.perspective.blit(l.tileset, (world.squareSize*(-self.x+x)+offset,world.squareSize*(-self.y+y)+self.perspective.get_height()/2), pygame.Rect((l.map[y][x]*world.squareSize,0), (world.squareSize,world.squareSize)))
       #draw the players
       pygame.draw.rect(self.perspective, pOne.mapColor, pygame.Rect(world.squareSize*(-self.x+pOne.x)+offset, world.squareSize*(-self.y+pOne.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
       pygame.draw.rect(self.perspective, pTwo.mapColor, pygame.Rect(world.squareSize*(-self.x+pTwo.x)+offset, world.squareSize*(-self.y+pTwo.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
@@ -128,7 +138,7 @@ class player:
       pygame.draw.rect(self.perspective, pFour.mapColor, pygame.Rect(world.squareSize*(-self.x+pFour.x)+offset, world.squareSize*(-self.y+pFour.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
 
 #create level
-l = level(world.grid,world.grid)
+l = level(world.grid,world.grid,"tileset")
 
 #generate players
 pOne = player(int(world.grid/2),int(world.grid/2))
@@ -146,9 +156,11 @@ pFour.controls = {'up':K_KP8,'down':K_KP2,'left':K_KP4,'right':K_KP6}
 #game variables
 random.seed()
 playing = 1
+update = 1 #flag for updating screen
 
 #main loop
 while(playing):
+   framecounter = time.clock()
 
    for event in pygame.event.get():
       if event.type == pygame.QUIT:
@@ -158,38 +170,41 @@ while(playing):
          if key[K_SPACE]:
             l.clear()
             l.generate()
-         pOne.readInput(key)
-         pTwo.readInput(key)
-         pThree.readInput(key)
-         pFour.readInput(key)
+         update = pOne.readInput(key)
+         update = update+pTwo.readInput(key)
+         update = update+pThree.readInput(key)
+         update = update+pFour.readInput(key)
+   if update:
+      pOne.drawView()
+      screen.blit(pOne.perspective,world.playerWindowPosition[0])
 
-   pOne.drawView()
-   screen.blit(pOne.perspective,world.playerWindowPosition[0])
+      if(world.players>1):
+         pTwo.drawView()
+         screen.blit(pTwo.perspective,world.playerWindowPosition[1])
 
-   if(world.players>1):
-      pTwo.drawView()
-      screen.blit(pTwo.perspective,world.playerWindowPosition[1])
+      if(world.players>2):
+         pThree.drawView()
+         screen.blit(pThree.perspective,world.playerWindowPosition[2])
+      if(world.players==4):
+         pFour.drawView()
+         screen.blit(pFour.perspective,world.playerWindowPosition[3])
 
-   if(world.players>2):
-      pThree.drawView()
-      screen.blit(pThree.perspective,world.playerWindowPosition[2])
-   if(world.players==4):
-      pFour.drawView()
-      screen.blit(pFour.perspective,world.playerWindowPosition[3])
+      #draw the map
+      for y in range(len(l.map)):
+         for x in range(len(l.map[y])):
+            world.mapOverview.blit(l.mapTileset, ( world.squareSize*x*world.mapScale, world.squareSize*y*world.mapScale), pygame.Rect((l.map[y][x]*world.squareSize*world.mapScale,0), (world.squareSize*world.mapScale,world.squareSize*world.mapScale)))
+      #draw the players on the map
+      pygame.draw.rect(world.mapOverview, pOne.mapColor, pygame.Rect( world.squareSize*world.mapScale*pOne.x, world.squareSize*pOne.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+      pygame.draw.rect(world.mapOverview, pTwo.mapColor, pygame.Rect( world.squareSize*world.mapScale*pTwo.x, world.squareSize*pTwo.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+      pygame.draw.rect(world.mapOverview, pThree.mapColor, pygame.Rect( world.squareSize*world.mapScale*pThree.x, world.squareSize*pThree.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+      pygame.draw.rect(world.mapOverview, pFour.mapColor, pygame.Rect( world.squareSize*world.mapScale*pFour.x, world.squareSize*pFour.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
 
-   #draw the map
-   for y in range(len(l.map)):
-      for x in range(len(l.map[y])):
-         pygame.draw.rect(world.mapOverview, l.color[l.map[y][x]], pygame.Rect( world.squareSize*x*world.mapScale, world.squareSize*y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-   #draw the players on the map
-   pygame.draw.rect(world.mapOverview, pOne.mapColor, pygame.Rect( world.squareSize*world.mapScale*pOne.x, world.squareSize*pOne.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-   pygame.draw.rect(world.mapOverview, pTwo.mapColor, pygame.Rect( world.squareSize*world.mapScale*pTwo.x, world.squareSize*pTwo.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-   pygame.draw.rect(world.mapOverview, pThree.mapColor, pygame.Rect( world.squareSize*world.mapScale*pThree.x, world.squareSize*pThree.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-   pygame.draw.rect(world.mapOverview, pFour.mapColor, pygame.Rect( world.squareSize*world.mapScale*pFour.x, world.squareSize*pFour.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+      screen.blit(world.mapOverview,world.mapOverviewPosition)
 
-   screen.blit(world.mapOverview,world.mapOverviewPosition)
-
-   pygame.display.flip()
+      pygame.display.flip()
+      update = 0 #clar flag for screen refresh
+   print("fps: %.f" % (1/(time.clock()-framecounter)))
 
 #cleanup
+pygame.display.quit()
 pygame.quit()
