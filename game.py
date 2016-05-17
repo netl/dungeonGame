@@ -12,28 +12,33 @@ pygame.init()
 screen = pygame.display.set_mode([view.width,view.height])
 
 class world:
-   grid = 40
-   players = 1
+   grid = 40 #how many blocks per world vertically/horizontally
+   viewGrid = 5 #how many blocks can the player see
+   players = 4 #how many players, duh.
+
    #different settings for different amounts of players
    if(players==1): #player view on the left, map overview at the top right
       playerWindowSize = view.height
       playerWindowPosition = ((0,0),(0,0))
-      squareSize = playerWindowSize/11
+      squareSize = playerWindowSize/viewGrid
       mapScale = (view.width-playerWindowSize)/(squareSize*grid)
-      mapOverviewPosition = (playerWindowSize,0)
+      miniMapPosition = (playerWindowSize,0)
+
    elif(players==2): #player 1 on the top right, player 2 on the top left, map overview in bottom center
       playerWindowSize = view.width/2
       playerWindowPosition = ((view.width-playerWindowSize,0),(0,0))
-      squareSize = playerWindowSize/11
+      squareSize = playerWindowSize/viewGrid
       mapScale = (view.height-playerWindowSize)/(squareSize*grid)
-      mapOverviewPosition = (playerWindowSize-(view.height-playerWindowSize)/2,playerWindowSize)
+      miniMapPosition = (playerWindowSize-(view.height-playerWindowSize)/2,playerWindowSize)
+
    else: #player 1: top right, player 2: bottom left, player 3: top left, player 4: bottom right, map overview in center
       playerWindowSize = view.height/2
       playerWindowPosition = ((view.width-playerWindowSize,0),(0,view.height-playerWindowSize),(0,0),(view.width-playerWindowSize,view.height-playerWindowSize))
-      squareSize = playerWindowSize/11
+      squareSize = playerWindowSize/viewGrid
       mapScale = (view.width-playerWindowSize*2)/(squareSize*grid)
-      mapOverviewPosition = (playerWindowSize,(view.height-mapScale*squareSize*grid)/2)
-   mapOverview = pygame.Surface((grid*squareSize*mapScale,grid*squareSize*mapScale))
+      miniMapPosition = (playerWindowSize,(view.height-mapScale*squareSize*grid)/2)
+
+   miniMap = pygame.Surface((grid*squareSize*mapScale,grid*squareSize*mapScale)) #minimap
 
 class level:
    color = ((255,128,0),(0,0,0))
@@ -48,14 +53,16 @@ class level:
       for y in range(len(self.map)):
          for x in range(len(self.map[y])):
             self.map[y][x] = 0
+            world.miniMap.fill((0,0,0))
       return(0)
    
    #generate tunnels
    def generate(self):
       miner = player(int(world.grid/2),int(world.grid/2))
-      pOne.x = miner.x
-      pOne.y = miner.y
-      for i in range(200):
+      for p in range(len(plr)):
+         plr[p].x = miner.x
+         plr[p].y = miner.y
+      for i in range(world.grid*5):
          self.map[miner.y][miner.x] = 1 
          r = random.randint(0,3)
          stepCount = random.randint(0,5)
@@ -74,11 +81,11 @@ class level:
       return(0)
 
 class player:
-
    def __init__(self,x,y):
       self.controls = {'up':K_UP,'down':K_DOWN,'left':K_LEFT,'right':K_RIGHT}
       self.mapColor = (255,255,255)
       self.perspective = pygame.Surface((world.playerWindowSize,world.playerWindowSize))
+      self.view = [[0 for x in range(world.viewGrid)] for y in range(world.viewGrid)]
       self.x = x
       self.y = y
 
@@ -121,37 +128,48 @@ class player:
       else:
          return(0)
 
+   def updateView(self):
+      for y in range(world.viewGrid):
+         for x in range(world.viewGrid):
+            offset=-int((world.viewGrid-1)/2)
+            if(x+self.x+offset < world.grid and x+self.x+offset >= 0 and y+self.y+offset < world.grid and y+self.y+offset >= 0):
+               self.view[y][x] = l.map[self.y+y+offset][self.x+x+offset]
+            else:
+               self.view[y][x] = 0
+      
+
    def underneath(self):
       return(l.map[self.y][self.x])
 
    def drawView(self):
       offset=self.perspective.get_width()/2-world.squareSize/2
       #draw the grid
-      for y in range(len(l.map)):
-         for x in range(len(l.map[y])):
-            if(x < self.x+10 and x > self.x-10 and y < self.y+10 and y > self.y-10):
-               self.perspective.blit(l.tileset, (world.squareSize*(-self.x+x)+offset,world.squareSize*(-self.y+y)+self.perspective.get_height()/2), pygame.Rect((l.map[y][x]*world.squareSize,0), (world.squareSize,world.squareSize)))
+      for y in range(world.viewGrid):
+         for x in range(world.viewGrid):
+            #update player view
+            self.perspective.blit(l.tileset, (world.squareSize*x,world.squareSize*y), pygame.Rect((self.view[y][x]*world.squareSize,0), (world.squareSize,world.squareSize)))
+            #update minimap
+            world.miniMap.blit(l.mapTileset, (world.squareSize*world.mapScale*(x+self.x-(world.viewGrid-1)/2), world.squareSize*world.mapScale*(y+self.y-(world.viewGrid-1)/2)), pygame.Rect((self.view[y][x]*world.squareSize*world.mapScale,0), (world.squareSize*world.mapScale,world.squareSize*world.mapScale)))
+            
       #draw the players
-      pygame.draw.rect(self.perspective, pOne.mapColor, pygame.Rect(world.squareSize*(-self.x+pOne.x)+offset, world.squareSize*(-self.y+pOne.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
-      pygame.draw.rect(self.perspective, pTwo.mapColor, pygame.Rect(world.squareSize*(-self.x+pTwo.x)+offset, world.squareSize*(-self.y+pTwo.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
-      pygame.draw.rect(self.perspective, pThree.mapColor, pygame.Rect(world.squareSize*(-self.x+pThree.x)+offset, world.squareSize*(-self.y+pThree.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
-      pygame.draw.rect(self.perspective, pFour.mapColor, pygame.Rect(world.squareSize*(-self.x+pFour.x)+offset, world.squareSize*(-self.y+pFour.y)+self.perspective.get_height()/2, world.squareSize,world.squareSize))
+      for p in range(len(plr)):
+         pygame.draw.rect(self.perspective, plr[p].mapColor, pygame.Rect(world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset, world.squareSize,world.squareSize))
 
 #create level
 l = level(world.grid,world.grid,"tileset")
 
 #generate players
-pOne = player(int(world.grid/2),int(world.grid/2))
-pOne.mapColor = (255,0,0)
-pTwo = player(int(world.grid/2),int(world.grid/2))
-pTwo.mapColor = (0,255,0)
-pTwo.controls = {'up':K_w,'down':K_s,'left':K_a,'right':K_d}
-pThree = player(int(world.grid/2),int(world.grid/2))
-pThree.mapColor = (0,0,255)
-pThree.controls = {'up':K_i,'down':K_k,'left':K_j,'right':K_l}
-pFour = player(int(world.grid/2),int(world.grid/2))
-pFour.mapColor = (255,255,0)
-pFour.controls = {'up':K_KP8,'down':K_KP2,'left':K_KP4,'right':K_KP6}
+plr = [player(int(world.grid/2),int(world.grid/2)) for p in range(world.players)]
+plr[0].mapColor = (255,0,0)
+if( world.players > 1):
+   plr[1].controls = {'up':K_w,'down':K_s,'left':K_a,'right':K_d}
+   plr[1].mapColor = (0,255,0)
+if( world.players > 2):
+   plr[2].controls = {'up':K_i,'down':K_k,'left':K_j,'right':K_l}
+   plr[2].mapColor = (0,0,255)
+if( world.players > 3):
+   plr[3].controls = {'up':K_KP8,'down':K_KP2,'left':K_KP4,'right':K_KP6}
+   plr[3].mapColor = (255,255,0)
 
 #game variables
 random.seed()
@@ -170,36 +188,20 @@ while(playing):
          if key[K_SPACE]:
             l.clear()
             l.generate()
-         update = pOne.readInput(key)
-         update = update+pTwo.readInput(key)
-         update = update+pThree.readInput(key)
-         update = update+pFour.readInput(key)
+         for p in range(len(plr)):
+            update = update+plr[p].readInput(key)
+
    if update:
-      pOne.drawView()
-      screen.blit(pOne.perspective,world.playerWindowPosition[0])
+      for p in range(len(plr)):
+         plr[p].updateView()
+         plr[p].drawView()
+         screen.blit(plr[p].perspective,world.playerWindowPosition[p])
 
-      if(world.players>1):
-         pTwo.drawView()
-         screen.blit(pTwo.perspective,world.playerWindowPosition[1])
-
-      if(world.players>2):
-         pThree.drawView()
-         screen.blit(pThree.perspective,world.playerWindowPosition[2])
-      if(world.players==4):
-         pFour.drawView()
-         screen.blit(pFour.perspective,world.playerWindowPosition[3])
-
-      #draw the map
-      for y in range(len(l.map)):
-         for x in range(len(l.map[y])):
-            world.mapOverview.blit(l.mapTileset, ( world.squareSize*x*world.mapScale, world.squareSize*y*world.mapScale), pygame.Rect((l.map[y][x]*world.squareSize*world.mapScale,0), (world.squareSize*world.mapScale,world.squareSize*world.mapScale)))
       #draw the players on the map
-      pygame.draw.rect(world.mapOverview, pOne.mapColor, pygame.Rect( world.squareSize*world.mapScale*pOne.x, world.squareSize*pOne.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-      pygame.draw.rect(world.mapOverview, pTwo.mapColor, pygame.Rect( world.squareSize*world.mapScale*pTwo.x, world.squareSize*pTwo.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-      pygame.draw.rect(world.mapOverview, pThree.mapColor, pygame.Rect( world.squareSize*world.mapScale*pThree.x, world.squareSize*pThree.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
-      pygame.draw.rect(world.mapOverview, pFour.mapColor, pygame.Rect( world.squareSize*world.mapScale*pFour.x, world.squareSize*pFour.y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+      for p in range(len(plr)):
+         pygame.draw.rect(world.miniMap, plr[p].mapColor, pygame.Rect( world.squareSize*world.mapScale*plr[p].x, world.squareSize*plr[p].y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
 
-      screen.blit(world.mapOverview,world.mapOverviewPosition)
+      screen.blit(world.miniMap,world.miniMapPosition)
 
       pygame.display.flip()
       update = 0 #clar flag for screen refresh
