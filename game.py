@@ -129,6 +129,8 @@ class level:
 
 class player:
    def __init__(self):
+      self.sprite = pygame.image.load("./player1.png")
+      self.sprite = pygame.transform.scale(self.sprite,(int(world.squareSize),int(world.squareSize)))
       self.controls = {'up':K_UP,'down':K_DOWN,'left':K_LEFT,'right':K_RIGHT}
       self.mapColor = (255,255,255)
       self.perspective = pygame.Surface((world.playerWindowSize,world.playerWindowSize))
@@ -212,7 +214,9 @@ class player:
             
       #draw the players
       for p in range(len(plr)):
-         pygame.draw.rect(self.perspective, plr[p].mapColor, pygame.Rect(world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset, world.squareSize,world.squareSize))
+         self.perspective.blit(l.tileset, (world.squareSize*x,world.squareSize*y), pygame.Rect((self.view[y][x]*world.squareSize,0), (world.squareSize,world.squareSize)))
+         self.perspective.blit(self.sprite, (world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset))
+         #pygame.draw.rect(self.perspective, plr[p].mapColor, pygame.Rect(world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset, world.squareSize,world.squareSize))
 
       #draw bad mobs
       for m in range(len(l.mob)):
@@ -273,12 +277,12 @@ while(playing):
          plr[p].drawView()
          screen.blit(plr[p].perspective,world.playerWindowPosition[p])
 
-      #draw minimap
-      screen.blit(world.miniMap,world.miniMapPosition)
-
       #draw the players on the minimap
       for p in range(len(plr)):
          pygame.draw.rect(world.miniMap, plr[p].mapColor, pygame.Rect( world.squareSize*world.mapScale*plr[p].x, world.squareSize*plr[p].y*world.mapScale, world.squareSize*world.mapScale, world.squareSize*world.mapScale))
+
+      #draw minimap
+      screen.blit(world.miniMap,world.miniMapPosition)
 
       pygame.display.flip()
       update = 0 #clar flag for screen refresh
