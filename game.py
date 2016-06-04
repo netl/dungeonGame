@@ -18,7 +18,7 @@ screen = pygame.display.set_mode([view.width,view.height])
 class world:
    grid = 40 #how many blocks per world vertically/horizontally
    viewGrid = 5 #how many blocks can the player see
-   players = 1 #how many players, duh.
+   players = 2 #how many players, duh.
 
    #different settings for different amounts of players
    #1 player
@@ -69,22 +69,22 @@ class level:
    
    #make sure nothing is at position
    def isClear(self, x, y):
+      #check for walls
+      if(self.map[y][x] == 0):
+         return(1)
+
       #check for players
       for p in range(len(plr)):
          if (plr[p].x == x and plr[p].y == y):
-            return(0)
-
-      #check for walls
-      if(self.map[y][x] == 0):
-         return(0)
+            return(2)
 
       #check for mobs
       for m in range(len(self.mob)):
          if (self.mob[m].x == x and self.mob[m].y == y):
-            return(0)
+            return(3)
 
       #all good!
-      return(1)
+      return(0)
 
    #generate tunnels
    def generate(self):
@@ -119,7 +119,7 @@ class level:
       #create bad guys
       self.mob = [player() for m in range(5)]
       for m in range(len(self.mob)):
-         while( self.isClear(x, y) == 0):
+         while( self.isClear(x, y)):
             x = random.randint(0, world.grid-1)
             y = random.randint(0, world.grid-1)
          self.mob[m].x = x
@@ -156,20 +156,34 @@ class player:
     
    #move, if possible
    def move(self, direction):
-      if(direction == 'up' and self.y>0 and l.isClear(self.x, self.y-1) == 1):
-         self.y = self.y - 1
+      #figure out desired location
+      x = self.x
+      y = self.y
+      if( direction == 'up'):
+         y = self.y -1
+      elif( direction == 'down'):
+         y = self.y +1
+      elif( direction == 'left'):
+         x = self.x -1
+      elif( direction == 'right'):
+         x = self.x +1
+      #figure out what is at location
+      p = l.isClear(x,y)
+      if(p == 0): #move if possiblle
+         self.y = y
+         self.x = x
          return(0)
-      elif(direction == 'down' and self.y<len(l.map)-1 and l.isClear(self.x, self.y+1)):
-         self.y = self.y + 1
-         return(0)
-      elif(direction == 'left' and self.x>0 and l.isClear(self.x-1, self.y) == 1):
-         self.x = self.x - 1
-         return(0)
-      elif(direction == 'right' and self.x<len(l.map[self.y])-1 and l.isClear(self.x+1, self.y)):
-         self.x = self.x + 1
-         return(0)
-      else:
-         return(1)
+      elif(p == 3): #attack if move failed
+         n = 0
+         while True: #find mob at desired location
+            if(l.mob[n].x == x and l.mob[n].y == y):
+               l.mob[n].x = 1
+               l.mob[n].y = 1
+               return(0)
+            else:
+               n = n+1
+         return(1) 
+      return(1)
 
    #try to move towards given location
    def moveTowards(self, x, y):
@@ -195,10 +209,6 @@ class player:
                self.view[y][x] = l.map[self.y+y+offset][self.x+x+offset]
             else:
                self.view[y][x] = 0
-   
-   #chek what are you standing on (prolly not in use anymore)
-   def underneath(self):
-      return(l.map[self.y][self.x])
 
    #render viewpoint
    def drawView(self):
@@ -214,9 +224,7 @@ class player:
             
       #draw the players
       for p in range(len(plr)):
-         self.perspective.blit(l.tileset, (world.squareSize*x,world.squareSize*y), pygame.Rect((self.view[y][x]*world.squareSize,0), (world.squareSize,world.squareSize)))
          self.perspective.blit(self.sprite, (world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset))
-         #pygame.draw.rect(self.perspective, plr[p].mapColor, pygame.Rect(world.squareSize*(-self.x+plr[p].x)+offset, world.squareSize*(-self.y+plr[p].y)+offset, world.squareSize,world.squareSize))
 
       #draw bad mobs
       for m in range(len(l.mob)):
