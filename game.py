@@ -57,6 +57,8 @@ class level:
       self.tileset = pygame.transform.scale(self.tileset,(int(2*world.squareSize),int(world.squareSize)))
       self.mapTileset = pygame.transform.scale(self.tileset,(int(2*world.squareSize*world.mapScale),int(world.squareSize*world.mapScale)))
       self.map = [[0 for x in range(width)] for y in range(height)]
+      self.mobSprite = pygame.image.load("./hostile.png")
+      self.mobSprite = pygame.transform.scale(self.mobSprite,(int(world.squareSize),int(world.squareSize)))
   
    #clear the level 
    def clear(self):
@@ -228,7 +230,8 @@ class player:
 
       #draw bad mobs
       for m in range(len(l.mob)):
-         pygame.draw.rect(self.perspective, l.mob[m].mapColor, pygame.Rect(world.squareSize*(-self.x+l.mob[m].x)+offset, world.squareSize*(-self.y+l.mob[m].y)+offset, world.squareSize,world.squareSize))
+         self.perspective.blit(l.mobSprite, (world.squareSize*(-self.x+l.mob[m].x)+offset, world.squareSize*(-self.y+l.mob[m].y)+offset))
+         #pygame.draw.rect(self.perspective, l.mob[m].mapColor, pygame.Rect(world.squareSize*(-self.x+l.mob[m].x)+offset, world.squareSize*(-self.y+l.mob[m].y)+offset, world.squareSize,world.squareSize))
 
 #create level
 l = level(world.grid,world.grid,"tileset")
